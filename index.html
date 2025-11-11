@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CONTROL DE ASISTENCIA MODULAR</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="style.css"> 
+</head>
+<body>
+    <header class="AppHeader">
+        <h1>PANEL DE CONTROL ACADÉMICO</h1>
+        <p>Sistema de Gestión Modular</p>
+    </header>
+
+    <main class="MainContainer">
+        
+        <section id="AttendancePanel" class="ControlModule">
+            <h2>TOMA DE ASISTENCIA POR CLASE</h2>
+
+            <div class="SelectorGroup">
+                <div>
+                    <label for="ClassSelector">SELECCIONAR CURSO:</label>
+                    <select id="ClassSelector">
+                        <option value="">-- SELECCIONE UN CURSO --</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label for="SubjectSelector">SELECCIONAR MATERIA:</label>
+                    <select id="SubjectSelector" disabled>
+                        <option value="">-- SELECCIONE CURSO PRIMERO --</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div id="StudentListContainer" class="StudentList">
+                <p>Selecciona un curso y una materia para cargar la lista de alumnos</p>
+            </div>
+        </section>
+
+        <hr>
+
+        <section id="NewStudentPanel" class="ControlModule">
+            <h2>ALTA DE ALUMNO NUEVO</h2>
+
+            <form id="NewStudentForm" class="FormLayout">
+                <div class="FormBlock">
+                    <label for="NewNameInput">NOMBRE:</label>
+                    <input type="text" id="NewNameInput" required>
+                </div>
+                
+                <div class="FormBlock">
+                    <label for="NewLastNameInput">APELLIDO:</label>
+                    <input type="text" id="NewLastNameInput" required>
+                </div>
+                
+                <div class="FormBlock">
+                    <label for="NewStudentClassSelector">ASIGNAR A CURSO:</label>
+                    <select id="NewStudentClassSelector" required>
+                        <option value="">-- SELECCIONE CURSO --</option>
+                    </select>
+                </div>
+                
+                <button type="submit" id="AddStudentButton" class="ActionBtn primary">AGREGAR ALUMNO</button>
+                <p id="ResponseMsg"></p>
+            </form>
+        </section>
+
+        <hr>
+
+        <section id="RecordManagementPanel" class="ControlModule">
+            <h2>GESTIÓN DE REGISTROS (HISTORIAL)</h2>
+            <div class="SelectorGroup">
+                <div>
+                    <label for="FilterStart">FECHA INICIO:</label>
+                    <input type="date" id="FilterStart">
+                </div>
+                <div>
+                    <label for="FilterEnd">FECHA FIN:</label>
+                    <input type="date" id="FilterEnd">
+                </div>
+                <button id="ApplyFilterButton" class="ActionBtn secondary">FILTRAR HISTORIAL</button>
+            </div>
+
+            <div id="HistoryTableWrapper" class="RecordTableWrapper">
+                <p>Ingrese un rango de fechas para ver los registros...</p>
+            </div>
+        </section>
+
+    </main>
+
+    <script src="main.js"></script>
+</body>
+</html>
