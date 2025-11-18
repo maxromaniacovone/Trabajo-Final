@@ -2,210 +2,185 @@ const express = require('express');
 const mysql = require('mysql2');
 const cors = require('cors');
 
-const app = express();
-const SERVER_PORT = 3000;
+const webServer = express();
+const PORT = 3000;
 
-app.use(cors());
-app.use(express.json());
+webServer.use(cors());
+webServer.use(express.json());
 
-// -------------------------------------------------------------------
-// 1. CONFIGURACIÓN DB
-// -------------------------------------------------------------------
-const dbConfig = {
-    host: '127.0.0.1', 
-    user: 'root', 
-    password: '',     // <<-- Confirma tu contraseña de MySQL aquí
-    database: 'asistencia', // <<-- Nuevo nombre de la DB
-    port: 3306, 
+const dbConfiguration = {
+    host: '127.0.0.1',
+    user: 'root',
+    password: '',
+    database: 'asistencia',
+    port: 3306,
 };
 
-const dbClient = mysql.createConnection(dbConfig);
+const databaseConnection = mysql.createConnection(dbConfiguration);
 
-dbClient.connect(err => {
-    if (err) {
-        console.error('Database connection error:', err.stack);
-        console.log('🔴 ERROR: Check MySQL (XAMPP/WAMP) status.');
+databaseConnection.connect(error => {
+    if (error) {
+        console.error('Error de conexión a la Base de Datos:', error.stack);
+        console.log('ERROR: Verifica el estado de MySQL (XAMPP/WAMP).');
         return;
     }
-    console.log(`✅ Server connected to DB "${dbConfig.database}".`);
+    console.log(`Servidor conectado a la DB "${dbConfiguration.database}".`);
 });
 
-
-// -------------------------------------------------------------------
-// 2. ENDPOINTS DE DATOS
-// -------------------------------------------------------------------
-
-// Get all Classes
-app.get('/all-classes', (req, res) => {
-    dbClient.query('SELECT id, nombre FROM cursos ORDER BY id', (err, results) => {
-        if (err) return res.status(500).json({ message: 'Error retrieving classes.' });
-        res.json(results);
+webServer.get('/clases-disponibles', (peticion, respuesta) => {
+    databaseConnection.query('SELECT id, nombre FROM cursos ORDER BY id', (error, resultados) => {
+        if (error) return respuesta.status(500).json({ mensaje: 'Error al obtener las clases.' });
+        respuesta.json(resultados);
     });
 });
 
-// Get subjects by Class ID
-app.get('/class-subjects/:classId', (req, res) => {
-    const { classId } = req.params;
-    const sql = `
+webServer.get('/materias-por-clase/:identificadorClase', (peticion, respuesta) => {
+    const { identificadorClase } = peticion.params;
+    const consultaSQL = `
         SELECT m.id, m.nombre
         FROM materias m
         JOIN curso_materia cm ON m.id = cm.materia_id
         WHERE cm.curso_id = ?
         ORDER BY m.nombre`;
-    dbClient.query(sql, [classId], (err, results) => {
-        if (err) return res.status(500).json({ message: 'Error retrieving subjects.' });
-        res.json(results);
+    databaseConnection.query(consultaSQL, [identificadorClase], (error, resultados) => {
+        if (error) return respuesta.status(500).json({ mensaje: 'Error al obtener las materias.' });
+        respuesta.json(resultados);
     });
 });
 
-// Get students by Class ID
-app.get('/class-students/:classId', (req, res) => {
-    const { classId } = req.params;
-    const sql = 'SELECT id, nombre, apellido FROM alumnos WHERE curso_id = ? ORDER BY apellido';
-    dbClient.query(sql, [classId], (err, results) => {
-        if (err) return res.status(500).json({ message: 'Error retrieving students.' });
-        res.json(results);
+webServer.get('/alumnos-por-clase/:identificadorClase', (peticion, respuesta) => {
+    const { identificadorClase } = peticion.params;
+    const consultaSQL = 'SELECT id, nombre, apellido FROM alumnos WHERE curso_id = ? ORDER BY apellido';
+    databaseConnection.query(consultaSQL, [identificadorClase], (error, resultados) => {
+        if (error) return respuesta.status(500).json({ mensaje: 'Error al obtener los alumnos.' });
+        respuesta.json(resultados);
     });
 });
 
-// Get most recent attendance for a student/subject
-app.get('/recent-attendance/:studentId/:classId/:subjectId', (req, res) => {
-    const { studentId, classId, subjectId } = req.params;
-    const sql = `
+webServer.get('/asistencia-reciente/:identificadorAlumno/:identificadorClase/:identificadorMateria', (peticion, respuesta) => {
+    const { identificadorAlumno, identificadorClase, identificadorMateria } = peticion.params;
+    const consultaSQL = `
         SELECT estado 
         FROM asistencia 
         WHERE alumno_id = ? AND curso_id = ? AND materia_id = ?
         ORDER BY fecha DESC LIMIT 1`;
-    dbClient.query(sql, [studentId, classId, subjectId], (err, results) => {
-        if (err) return res.status(500).json({ message: 'Error retrieving recent attendance.' });
-        if (results.length === 0) return res.json({});
-        res.json(results[0]);
+    databaseConnection.query(consultaSQL, [identificadorAlumno, identificadorClase, identificadorMateria], (error, resultados) => {
+        if (error) return respuesta.status(500).json({ mensaje: 'Error al obtener la asistencia reciente.' });
+        if (resultados.length === 0) return respuesta.json({});
+        respuesta.json(resultados[0]);
     });
 });
 
-// Register attendance
-app.post('/save-attendance', (req, res) => {
-    const { student_id, class_id, status, subject_id } = req.body;
+webServer.post('/registrar-asistencia', (peticion, respuesta) => {
+    const { alumno_id, curso_id, estado_asistencia, materia_id } = peticion.body;
     
-    const validStatuses = ['P', 'A', 'T', 'RA', 'AP']; // <<-- VALIDACIÓN ACTUALIZADA
-    if (!validStatuses.includes(status)) {
-        return res.status(400).json({ message: `Invalid status: ${status}.` });
+    const estadosValidos = ['P', 'A', 'T', 'RA', 'AP'];
+    if (!estadosValidos.includes(estado_asistencia)) {
+        return respuesta.status(400).json({ mensaje: `Estado inválido: ${estado_asistencia}.` });
     }
 
-    if (!student_id || !class_id || !subject_id || !status) {
-        return res.status(400).json({ message: 'Missing required fields.' });
+    if (!alumno_id || !curso_id || !materia_id || !estado_asistencia) {
+        return respuesta.status(400).json({ mensaje: 'Faltan campos requeridos.' });
     }
 
-    const sql = 'INSERT INTO asistencia (alumno_id, curso_id, materia_id, estado) VALUES (?, ?, ?, ?)';
-    dbClient.query(sql, [student_id, class_id, subject_id, status], (err, result) => {
-        if (err) {
-            console.error('Error saving attendance:', err);
-            return res.status(500).json({ message: 'Error inserting record into DB.' });
+    const consultaSQL = 'INSERT INTO asistencia (alumno_id, curso_id, materia_id, estado) VALUES (?, ?, ?, ?)';
+    databaseConnection.query(consultaSQL, [alumno_id, curso_id, materia_id, estado_asistencia], (error, resultado) => {
+        if (error) {
+            console.error('Error al guardar asistencia:', error);
+            return respuesta.status(500).json({ mensaje: 'Error al insertar registro en la DB.' });
         }
-        res.status(201).json({ message: 'Attendance record saved successfully.', id: result.insertId });
+        respuesta.status(201).json({ mensaje: 'Registro de asistencia guardado con éxito.', id: resultado.insertId });
     });
 });
 
+webServer.get('/historial-asistencia', (peticion, respuesta) => {
+    const { fecha_inicio, fecha_fin } = peticion.query;
 
-// Get attendance history (filtered by date)
-app.get('/attendance-history', (req, res) => {
-    const { start_date, end_date } = req.query; // Query parameter names changed
-
-    let sql = `
+    let consultaSQL = `
         SELECT 
-            a.id AS record_id,
+            a.id AS identificador_registro,
             a.fecha,
-            DATE_FORMAT(a.fecha, '%d/%m/%Y %H:%i') AS formatted_date,
+            DATE_FORMAT(a.fecha, '%d/%m/%Y %H:%i') AS fecha_formateada,
             a.estado,
-            al.nombre AS student_name,
-            al.apellido AS student_lastname,
-            c.nombre AS class_name,
-            m.nombre AS subject_name
+            al.nombre AS nombre_alumno,
+            al.apellido AS apellido_alumno,
+            c.nombre AS nombre_clase,
+            m.nombre AS nombre_materia
         FROM asistencia a
         JOIN alumnos al ON a.alumno_id = al.id
         JOIN cursos c ON a.curso_id = c.id
         JOIN materias m ON a.materia_id = m.id
     `;
-    let params = [];
+    let parametros = [];
 
-    if (start_date && end_date) {
-        sql += ' WHERE DATE(a.fecha) BETWEEN ? AND ?';
-        params = [start_date, end_date];
+    if (fecha_inicio && fecha_fin) {
+        consultaSQL += ' WHERE DATE(a.fecha) BETWEEN ? AND ?';
+        parametros = [fecha_inicio, fecha_fin];
     }
     
-    sql += ' ORDER BY a.fecha DESC';
+    consultaSQL += ' ORDER BY a.fecha DESC';
 
-    dbClient.query(sql, params, (err, results) => {
-        if (err) return res.status(500).json({ message: 'Error retrieving history.' });
-        res.json(results);
+    databaseConnection.query(consultaSQL, parametros, (error, resultados) => {
+        if (error) return respuesta.status(500).json({ mensaje: 'Error al obtener el historial.' });
+        respuesta.json(resultados);
     });
 });
 
+webServer.put('/registro-asistencia/:id', (peticion, respuesta) => {
+    const identificadorRegistro = peticion.params.id;
+    const { nuevo_estado } = peticion.body;
 
-// -------------------------------------------------------------------
-// 3. ENDPOINTS PARA EDICIÓN Y BORRADO (GESTIÓN DE REGISTROS)
-// -------------------------------------------------------------------
-
-// EDIT record status (Button E)
-app.put('/attendance-record/:id', (req, res) => {
-    const recordId = req.params.id;
-    const { status } = req.body; // New field name
-
-    const validStatuses = ['P', 'A', 'T', 'RA', 'AP']; // <<-- VALIDACIÓN ACTUALIZADA
-    if (!validStatuses.includes(status)) {
-        return res.status(400).json({ message: `Invalid status: ${status}. Valid options are ${validStatuses.join(', ')}.` });
+    const estadosValidos = ['P', 'A', 'T', 'RA', 'AP'];
+    if (!estadosValidos.includes(nuevo_estado)) {
+        return respuesta.status(400).json({ mensaje: `Estado inválido: ${nuevo_estado}. Las opciones válidas son ${estadosValidos.join(', ')}.` });
     }
 
-    // Update status and set current date/time for modification
-    const sql = 'UPDATE asistencia SET estado = ?, fecha = CURRENT_TIMESTAMP WHERE id = ?';
-    dbClient.query(sql, [status, recordId], (err, result) => {
-        if (err) {
-            console.error('Error updating record:', err);
-            return res.status(500).json({ message: 'Error updating record.' });
+    const consultaSQL = 'UPDATE asistencia SET estado = ?, fecha = CURRENT_TIMESTAMP WHERE id = ?';
+    databaseConnection.query(consultaSQL, [nuevo_estado, identificadorRegistro], (error, resultado) => {
+        if (error) {
+            console.error('Error al actualizar registro:', error);
+            return respuesta.status(500).json({ mensaje: 'Error al actualizar el registro.' });
         }
-        if (result.affectedRows === 0) return res.status(404).json({ message: 'Record not found.' });
-        res.json({ message: 'Attendance record updated successfully.' });
+        if (resultado.affectedRows === 0) return respuesta.status(404).json({ mensaje: 'Registro no encontrado.' });
+        respuesta.json({ mensaje: 'Registro de asistencia actualizado con éxito.' });
     });
 });
 
-// DELETE a record (Button X)
-app.delete('/attendance-record/:id', (req, res) => {
-    const recordId = req.params.id;
+webServer.delete('/registro-asistencia/:id', (peticion, respuesta) => {
+    const identificadorRegistro = peticion.params.id;
 
-    const sql = 'DELETE FROM asistencia WHERE id = ?';
-    dbClient.query(sql, [recordId], (err, result) => {
-        if (err) {
-            console.error('Error deleting record:', err);
-            return res.status(500).json({ message: 'Error deleting record.' });
+    const consultaSQL = 'DELETE FROM asistencia WHERE id = ?';
+    databaseConnection.query(consultaSQL, [identificadorRegistro], (error, resultado) => {
+        if (error) {
+            console.error('Error al eliminar registro:', error);
+            return respuesta.status(500).json({ mensaje: 'Error al eliminar el registro.' });
         }
-        if (result.affectedRows === 0) return res.status(404).json({ message: 'Record not found.' });
-        res.json({ message: 'Attendance record deleted successfully.' });
+        if (resultado.affectedRows === 0) return respuesta.status(404).json({ mensaje: 'Registro no encontrado.' });
+        respuesta.json({ mensaje: 'Registro de asistencia eliminado con éxito.' });
     });
 });
 
-
-// -------------------------------------------------------------------
-// 4. ENDPOINTS PARA ALTA DE ALUMNO
-// -------------------------------------------------------------------
-
-// Add new student
-app.post('/new-student', (req, res) => {
-    const { name, lastname, class_id } = req.body; // New field names
+webServer.post('/nuevo-alumno', (peticion, respuesta) => {
+    const { nombre_alumno, apellido_alumno, id_clase } = peticion.body;
     
-    if (!name || !lastname || !class_id) {
-        return res.status(400).json({ message: 'Missing fields: name, lastname, or class_id.' });
+    if (!nombre_alumno || !apellido_alumno || !id_clase) {
+        return respuesta.status(400).json({ mensaje: 'Faltan campos: nombre_alumno, apellido_alumno, o id_clase.' });
     }
 
-    const sql = 'INSERT INTO alumnos (nombre, apellido, curso_id) VALUES (?, ?, ?)';
-    dbClient.query(sql, [name, lastname, class_id], (err, result) => {
-        if (err) {
-            console.error('Error adding student:', err);
-            return res.status(500).json({ message: 'Error inserting new student into DB.' });
+    const consultaSQL = 'INSERT INTO alumnos (nombre, apellido, curso_id) VALUES (?, ?, ?)';
+    databaseConnection.query(consultaSQL, [nombre_alumno, apellido_alumno, id_clase], (error, resultado) => {
+        if (error) {
+            console.error('Error al añadir alumno:', error);
+            return respuesta.status(500).json({ mensaje: 'Error al insertar nuevo alumno en la DB.' });
         }
-        res.status(201).json({ message: 'Student added successfully.', id: result.insertId });
+        respuesta.status(201).json({ mensaje: 'Alumno añadido con éxito.', id: resultado.insertId });
     });
 });
 
-app.listen(SERVER_PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${SERVER_PORT}`);
+webServer.use((peticion, respuesta) => {
+    respuesta.status(404).json({ mensaje: 'Error 404: La ruta solicitada no es igual a ninguna definida.' });
+});
+
+webServer.listen(PORT, () => {
+    console.log(`Servidor en ejecución en http://localhost:${PORT}`);
 });
