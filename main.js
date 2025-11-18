@@ -1,20 +1,15 @@
-const API_BASE = 'http://localhost:3000'; 
-const VALID_STATUSES = ['P', 'A', 'T', 'RA', 'AP']; // <<-- Array de estados actualizado
+const API_BASE = 'http://localhost:3000';
+const VALID_STATUSES = ['P', 'A', 'T', 'RA', 'AP'];
 
-// ====================================================================
-// --- FUNCIONES DE CARGA Y GESTIÓN DE DATOS ---
-// ====================================================================
-
-// 1. Cargar Cursos
 async function loadClasses() {
     const ClassSelector = document.getElementById('ClassSelector');
     const NewStudentClassSelector = document.getElementById('NewStudentClassSelector');
     
     try {
-        const response = await fetch(`${API_BASE}/all-classes`); // Endpoint renombrado
-        const classes = await response.json(); 
+        const response = await fetch(`${API_BASE}/all-classes`);
+        const classes = await response.json();
         
-        const optionsHTML = classes.map(cls => 
+        const optionsHTML = classes.map(cls =>
             `<option value="${cls.id}">${cls.nombre}</option>`
         ).join('');
 
@@ -26,7 +21,6 @@ async function loadClasses() {
     }
 }
 
-// 2. Cargar Materias
 async function loadSubjects(classId) {
     const SubjectSelector = document.getElementById('SubjectSelector');
     SubjectSelector.innerHTML = '<option value="">-- CARGANDO MATERIAS --</option>';
@@ -38,13 +32,13 @@ async function loadSubjects(classId) {
     }
 
     try {
-        const response = await fetch(`${API_BASE}/class-subjects/${classId}`); // Endpoint renombrado
+        const response = await fetch(`${API_BASE}/class-subjects/${classId}`);
         const subjects = await response.json();
         
         if (subjects.length === 0) {
             SubjectSelector.innerHTML = '<option value="">-- NO HAY MATERIAS ASIGNADAS --</option>';
         } else {
-            const optionsHTML = subjects.map(subject => 
+            const optionsHTML = subjects.map(subject =>
                 `<option value="${subject.id}">${subject.nombre}</option>`
             ).join('');
             SubjectSelector.innerHTML = '<option value="">-- SELECCIONE UNA MATERIA --</option>' + optionsHTML;
@@ -57,7 +51,6 @@ async function loadSubjects(classId) {
     }
 }
 
-// 3. Cargar Lista de Alumnos (Genera la tabla con botones)
 async function getStudentList(classId, subjectId) {
     const StudentListContainer = document.getElementById('StudentListContainer');
     StudentListContainer.innerHTML = '<p>Cargando alumnos...</p>';
@@ -68,7 +61,7 @@ async function getStudentList(classId, subjectId) {
     }
 
     try {
-        const studentsResponse = await fetch(`${API_BASE}/class-students/${classId}`); // Endpoint renombrado
+        const studentsResponse = await fetch(`${API_BASE}/class-students/${classId}`);
         const students = await studentsResponse.json();
 
         if (students.length === 0) {
@@ -92,7 +85,7 @@ async function getStudentList(classId, subjectId) {
         `;
 
         for (const student of students) {
-            const recentResponse = await fetch(`${API_BASE}/recent-attendance/${student.id}/${classId}/${subjectId}`); // Endpoint renombrado
+            const recentResponse = await fetch(`${API_BASE}/recent-attendance/${student.id}/${classId}/${subjectId}`);
             const recentRecord = await recentResponse.json();
             const lastStatus = recentRecord.estado || 'N/A';
             
@@ -101,11 +94,11 @@ async function getStudentList(classId, subjectId) {
             tableHTML += `
                 <tr>
                     <td style="text-align: left;">${student.apellido}, ${student.nombre}</td>
-                    <td><button class="StatusButton ${getActiveClass('P')}" data-student-id="${student.id}" data-status="P" onclick="saveAttendance(this)">P</button></td>
-                    <td><button class="StatusButton ${getActiveClass('A')}" data-student-id="${student.id}" data-status="A" onclick="saveAttendance(this)">A</button></td>
-                    <td><button class="StatusButton ${getActiveClass('T')}" data-student-id="${student.id}" data-status="T" onclick="saveAttendance(this)">T</button></td>
-                    <td><button class="StatusButton ${getActiveClass('RA')}" data-student-id="${student.id}" data-status="RA" onclick="saveAttendance(this)">RA</button></td>
-                    <td><button class="StatusButton ${getActiveClass('AP')}" data-student-id="${student.id}" data-status="AP" onclick="saveAttendance(this)">AP</button></td> <td><span class="last_status">${lastStatus}</span></td>
+                    <td><button class="StatusButton ${getActiveClass('P')}" data-student-id="${student.id}" data-status="P" onclick="saveAttendance(this)"></button></td>
+                    <td><button class="StatusButton ${getActiveClass('A')}" data-student-id="${student.id}" data-status="A" onclick="saveAttendance(this)"></button></td>
+                    <td><button class="StatusButton ${getActiveClass('T')}" data-student-id="${student.id}" data-status="T" onclick="saveAttendance(this)"></button></td>
+                    <td><button class="StatusButton ${getActiveClass('RA')}" data-student-id="${student.id}" data-status="RA" onclick="saveAttendance(this)"></button></td>
+                    <td><button class="StatusButton ${getActiveClass('AP')}" data-student-id="${student.id}" data-status="AP" onclick="saveAttendance(this)"></button></td> <td><span class="last_status">${lastStatus}</span></td>
                 </tr>
             `;
         }
@@ -119,7 +112,6 @@ async function getStudentList(classId, subjectId) {
     }
 }
 
-// 4. Guardar Asistencia (Al hacer click en el botón de estado)
 window.saveAttendance = async function(buttonElement) {
     const ClassSelector = document.getElementById('ClassSelector');
     const SubjectSelector = document.getElementById('SubjectSelector');
@@ -139,7 +131,7 @@ window.saveAttendance = async function(buttonElement) {
     const data = { student_id, class_id, status, subject_id };
 
     try {
-        const response = await fetch(`${API_BASE}/save-attendance`, { // Endpoint renombrado
+        const response = await fetch(`${API_BASE}/save-attendance`, {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify(data)
@@ -153,8 +145,7 @@ window.saveAttendance = async function(buttonElement) {
             buttonElement.classList.add('ACTIVE');
             lastStatusCell.textContent = status;
             
-            // Recargar historial para ver el nuevo registro
-            loadRecords(FilterStart.value, FilterEnd.value); 
+            loadRecords(FilterStart.value, FilterEnd.value);
         } else {
             const errorData = await response.json();
             alert(`ERROR SAVING RECORD. Server Message: ${errorData.message}`);
@@ -166,18 +157,17 @@ window.saveAttendance = async function(buttonElement) {
     }
 }
 
-// 5. Cargar Historial de Registros
 async function loadRecords(startDate, endDate) {
     const HistoryTableWrapper = document.getElementById('HistoryTableWrapper');
     HistoryTableWrapper.innerHTML = '<p>Cargando registros...</p>';
 
     if (!startDate || !endDate) {
-         HistoryTableWrapper.innerHTML = '<p>Ingrese las fechas para ver el historial.</p>';
-         return;
+           HistoryTableWrapper.innerHTML = '<p>Ingrese las fechas para ver el historial.</p>';
+           return;
     }
 
     try {
-        const url = `${API_BASE}/attendance-history?start_date=${startDate}&end_date=${endDate}`; // Endpoint y params renombrados
+        const url = `${API_BASE}/attendance-history?start_date=${startDate}&end_date=${endDate}`;
         const response = await fetch(url);
         const records = await response.json();
 
@@ -225,7 +215,6 @@ async function loadRecords(startDate, endDate) {
     }
 }
 
-// 6. Editar el Registro (Botón E)
 window.editRecord = async function(recordId) {
     const FilterStart = document.getElementById('FilterStart');
     const FilterEnd = document.getElementById('FilterEnd');
@@ -233,7 +222,7 @@ window.editRecord = async function(recordId) {
     const newStatus = prompt(`EDITAR REGISTRO ID ${recordId}.\nIngrese el nuevo estado: ${VALID_STATUSES.join(', ')}`);
     
     if (!newStatus) {
-        return; 
+        return;
     }
     
     const statusUpper = newStatus.toUpperCase();
@@ -244,26 +233,25 @@ window.editRecord = async function(recordId) {
     }
 
     try {
-        const response = await fetch(`${API_BASE}/attendance-record/${recordId}`, { // Endpoint renombrado
+        const response = await fetch(`${API_BASE}/attendance-record/${recordId}`, {
             method: 'PUT',
             headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ status: statusUpper }) // Campo de body renombrado
+            body: JSON.stringify({ status: statusUpper })
         });
 
         if (response.ok) {
-            alert('✅ Registro actualizado con éxito.');
+            alert('Registro actualizado con éxito.');
             loadRecords(FilterStart.value, FilterEnd.value);
         } else {
             const errorData = await response.json();
-            alert(`❌ Error al actualizar: ${errorData.message}`);
+            alert(`Error al actualizar: ${errorData.message}`);
         }
     } catch (error) {
         console.error('Error editing record:', error);
-        alert('❌ CRITICAL CONNECTION ERROR during editing.');
+        alert('CRITICAL CONNECTION ERROR during editing.');
     }
 }
 
-// 7. Eliminar el Registro (Botón X)
 window.deleteRecord = async function(recordId) {
     if (!confirm(`¿CONFIRMAR ELIMINACIÓN del registro ID ${recordId}?`)) {
         return;
@@ -273,25 +261,23 @@ window.deleteRecord = async function(recordId) {
     const FilterEnd = document.getElementById('FilterEnd');
 
     try {
-        const response = await fetch(`${API_BASE}/attendance-record/${recordId}`, { // Endpoint renombrado
+        const response = await fetch(`${API_BASE}/attendance-record/${recordId}`, {
             method: 'DELETE'
         });
 
         if (response.ok) {
-            alert('🗑️ Registro eliminado con éxito.');
+            alert('Registro eliminado con éxito.');
             loadRecords(FilterStart.value, FilterEnd.value);
         } else {
             const errorData = await response.json();
-            alert(`❌ Error al eliminar: ${errorData.message}`);
+            alert(`Error al eliminar: ${errorData.message}`);
         }
     } catch (error) {
         console.error('Error deleting record:', error);
-        alert('❌ CRITICAL CONNECTION ERROR during deletion.');
+        alert('CRITICAL CONNECTION ERROR during deletion.');
     }
 }
 
-
-// 8. Configurar fechas por defecto
 function setDefaultDates() {
     const FilterStart = document.getElementById('FilterStart');
     const FilterEnd = document.getElementById('FilterEnd');
@@ -311,11 +297,7 @@ function setDefaultDates() {
     FilterStart.value = dateFormat(thirtyDaysAgo);
 }
 
-
-// --- EVENT LISTENER PRINCIPAL ---
-
 document.addEventListener('DOMContentLoaded', () => {
-    // Selectors
     const ClassSelector = document.getElementById('ClassSelector');
     const SubjectSelector = document.getElementById('SubjectSelector');
     const FilterStart = document.getElementById('FilterStart');
@@ -324,11 +306,10 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const NewStudentForm = document.getElementById('NewStudentForm');
     const NewStudentClassSelector = document.getElementById('NewStudentClassSelector');
-    const NewNameInput = document.getElementById('NewNameInput'); 
-    const NewLastNameInput = document.getElementById('NewLastNameInput'); 
+    const NewNameInput = document.getElementById('NewNameInput');
+    const NewLastNameInput = document.getElementById('NewLastNameInput');
     const ResponseMsg = document.getElementById('ResponseMsg');
 
-    // 1. Selector de Curso
     ClassSelector.addEventListener('change', () => {
         const classId = ClassSelector.value;
         const subjectId = SubjectSelector.value;
@@ -336,28 +317,25 @@ document.addEventListener('DOMContentLoaded', () => {
         getStudentList(classId, subjectId);
     });
 
-    // 2. Selector de Materia
     SubjectSelector.addEventListener('change', () => {
         const classId = ClassSelector.value;
         const subjectId = SubjectSelector.value;
         getStudentList(classId, subjectId);
     });
     
-    // 3. Botón Filtrar Historial
     ApplyFilterButton.addEventListener('click', () => {
         const start = FilterStart.value;
         const end = FilterEnd.value;
         loadRecords(start, end);
     });
 
-    // 4. Alta de nuevo alumno (Formulario)
     NewStudentForm.addEventListener('submit', async (e) => {
         e.preventDefault();
 
         const data = {
-            name: NewNameInput.value, // Nombre de campo renombrado
-            lastname: NewLastNameInput.value, // Nombre de campo renombrado
-            class_id: NewStudentClassSelector.value // Nombre de campo renombrado
+            name: NewNameInput.value,
+            lastname: NewLastNameInput.value,
+            class_id: NewStudentClassSelector.value
         };
 
         if (!data.name || !data.lastname || !data.class_id) {
@@ -367,7 +345,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
-            const response = await fetch(`${API_BASE}/new-student`, { // Endpoint renombrado
+            const response = await fetch(`${API_BASE}/new-student`, {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
                 body: JSON.stringify(data)
@@ -376,31 +354,27 @@ document.addEventListener('DOMContentLoaded', () => {
             const result = await response.json();
 
             if (response.ok) {
-                ResponseMsg.textContent = `✅ ÉXITO: ${result.message} (ID: ${result.id})`;
+                ResponseMsg.textContent = `ÉXITO: ${result.message} (ID: ${result.id})`;
                 ResponseMsg.style.color = '#2ecc71';
                 
                 NewStudentForm.reset();
                 
-                // Recargar lista si el curso coincide
                 if (ClassSelector.value === data.class_id) {
                     const subjectId = SubjectSelector.value;
                     getStudentList(data.class_id, subjectId);
                 }
                 
             } else {
-                ResponseMsg.textContent = `❌ ERROR: ${result.message}`;
+                ResponseMsg.textContent = `ERROR: ${result.message}`;
                 ResponseMsg.style.color = '#e74c3c';
             }
         } catch (error) {
-            ResponseMsg.textContent = '❌ ERROR DE RED O CONEXIÓN CON EL SERVIDOR.';
+            ResponseMsg.textContent = 'ERROR DE RED O CONEXIÓN CON EL SERVIDOR.';
             ResponseMsg.style.color = '#e74c3c';
         }
     });
 
-
-    // --- INICIALIZACIÓN ---
-    
     loadClasses();
-    setDefaultDates(); 
+    setDefaultDates();
     loadRecords(FilterStart.value, FilterEnd.value);
 });
